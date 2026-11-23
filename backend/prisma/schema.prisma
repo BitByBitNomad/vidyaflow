@@ -1,0 +1,139 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum AssignmentStatus {
+  PENDING
+  COMPLETED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  role         Role     @default(STUDENT)
+  passwordHash String?  @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  createdQuizzes     Quiz[]           @relation("TeacherQuizzes")
+  assignedQuizzes    QuizAssignment[] @relation("StudentAssignments")
+  assignedByMe       QuizAssignment[] @relation("TeacherAssignments")
+  attempts           StudentAttempt[]
+
+  @@map("users")
+}
+
+model Quiz {
+  id             String   @id @default(uuid())
+  title          String
+  description    String?  @db.Text
+  teacherId      String   @map("teacher_id")
+  teacher        User     @relation("TeacherQuizzes", fields: [teacherId], references: [id], onDelete: Cascade)
+  isPublished    Boolean  @default(true) @map("is_published")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  questions      Question[]
+  assignments    QuizAssignment[]
+  attempts       StudentAttempt[]
+
+  @@index([teacherId])
+  @@map("quizzes")
+}
+
+model Question {
+  id           String   @id @default(uuid())
+  quizId       String   @map("quiz_id")
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionText String   @map("question_text") @db.Text
+  orderIndex   Int      @default(0) @map("order_index")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  options          QuestionOption[]
+  submittedAnswers SubmittedAnswer[]
+
+  @@index([quizId])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id          String   @id @default(uuid())
+  questionId  String   @map("question_id")
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  optionText  String   @map("option_text") @db.Text
+  optionLabel String   @map("option_label") // "A", "B", "C", "D"
+  isCorrect   Boolean  @default(false) @map("is_correct")
+
+  submittedAnswers SubmittedAnswer[]
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+model QuizAssignment {
+  id           String           @id @default(uuid())
+  quizId       String           @map("quiz_id")
+  quiz         Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId    String           @map("student_id")
+  student      User             @relation("StudentAssignments", fields: [studentId], references: [id], onDelete: Cascade)
+  assignedById String           @map("assigned_by_id")
+  assignedBy   User             @relation("TeacherAssignments", fields: [assignedById], references: [id])
+  status       AssignmentStatus @default(PENDING)
+  assignedAt   DateTime         @default(now()) @map("assigned_at")
+
+  attempt      StudentAttempt?
+
+  @@unique([quizId, studentId])
+  @@index([studentId])
+  @@index([quizId])
+  @@map("quiz_assignments")
+}
+
+model StudentAttempt {
+  id             String         @id @default(uuid())
+  assignmentId   String         @unique @map("assignment_id")
+  assignment     QuizAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  quizId         String         @map("quiz_id")
+  quiz           Quiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId      String         @map("student_id")
+  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score          Int
+  totalQuestions Int            @map("total_questions")
+  accuracy       Float
+  startedAt      DateTime       @default(now()) @map("started_at")
+  completedAt    DateTime       @default(now()) @map("completed_at")
+
+  answers        SubmittedAnswer[]
+
+  @@unique([quizId, studentId])
+  @@index([quizId])
+  @@index([studentId])
+  @@map("student_attempts")
+}
+
+model SubmittedAnswer {
+  id               String         @id @default(uuid())
+  attemptId        String         @map("attempt_id")
+  attempt          StudentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId       String         @map("question_id")
+  question         Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId String         @map("selected_option_id")
+  selectedOption   QuestionOption @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+  isCorrect        Boolean        @map("is_correct")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@index([attemptId])
+  @@index([questionId])
+  @@map("submitted_answers")
+}
