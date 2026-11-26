@@ -4,11 +4,11 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
-} from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { SubmitAttemptDto } from './dto/submit-attempt.dto';
-import { LeaderboardService } from '../leaderboard/leaderboard.service';
-import { AssignmentStatus } from '@prisma/client';
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { SubmitAttemptDto } from "./dto/submit-attempt.dto";
+import { LeaderboardService } from "../leaderboard/leaderboard.service";
+import { AssignmentStatus } from "@prisma/client";
 
 @Injectable()
 export class AttemptsService {
@@ -45,7 +45,7 @@ export class AttemptsService {
 
       if (!lockedAssignments || lockedAssignments.length === 0) {
         throw new ForbiddenException(
-          'Rejection: Student is not assigned to this quiz.',
+          "Rejection: Student is not assigned to this quiz.",
         );
       }
 
@@ -54,7 +54,7 @@ export class AttemptsService {
       // Check if assignment was already completed
       if (assignment.status === AssignmentStatus.COMPLETED) {
         throw new BadRequestException(
-          'Rejection: This quiz assignment has already been completed and submitted.',
+          "Rejection: This quiz assignment has already been completed and submitted.",
         );
       }
 
@@ -70,7 +70,7 @@ export class AttemptsService {
 
       if (existingAttempt) {
         throw new BadRequestException(
-          'Rejection: A submission for this quiz assignment already exists.',
+          "Rejection: A submission for this quiz assignment already exists.",
         );
       }
 
@@ -78,11 +78,11 @@ export class AttemptsService {
       const questions = await tx.question.findMany({
         where: { quizId },
         include: { options: true },
-        orderBy: { orderIndex: 'asc' },
+        orderBy: { orderIndex: "asc" },
       });
 
       if (!questions || questions.length === 0) {
-        throw new BadRequestException('Quiz contains no questions.');
+        throw new BadRequestException("Quiz contains no questions.");
       }
 
       const totalQuestions = questions.length;
@@ -168,7 +168,7 @@ export class AttemptsService {
         correctAnswers: correctAnswersCount,
         incorrectAnswers: totalQuestions - correctAnswersCount,
         accuracyPercentage: accuracy,
-        quizCompletionStatus: 'COMPLETED',
+        quizCompletionStatus: "COMPLETED",
         completedAt: attempt.completedAt,
       };
     });
@@ -180,7 +180,7 @@ export class AttemptsService {
         studentId,
         result.accuracyPercentage,
       );
-    } catch (cacheErr) {
+    } catch (cacheErr: any) {
       this.logger.warn(
         `Redis Write-Through leaderboard update error: ${cacheErr.message}`,
       );
@@ -223,7 +223,7 @@ export class AttemptsService {
 
     if (!attempt) {
       throw new NotFoundException(
-        'Quiz attempt not found. Quiz has not been submitted yet.',
+        "Quiz attempt not found. Quiz has not been submitted yet.",
       );
     }
 
@@ -236,7 +236,7 @@ export class AttemptsService {
       correctAnswers: attempt.score,
       incorrectAnswers: attempt.totalQuestions - attempt.score,
       accuracyPercentage: attempt.accuracy,
-      quizCompletionStatus: 'COMPLETED',
+      quizCompletionStatus: "COMPLETED",
       completedAt: attempt.completedAt,
       review: attempt.answers.map((ans) => ({
         questionId: ans.questionId,
